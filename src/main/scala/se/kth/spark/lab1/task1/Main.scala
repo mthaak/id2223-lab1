@@ -59,7 +59,7 @@ object Main {
     sparkSession.sql("SELECT max(year) FROM songs").show()
     sparkSession.sql("SELECT avg(year) FROM songs").show()
     //    4. Show the number of songs per year between the years 2000 and 2010?
-    println("%d songs per year between 2000 and 2010".format(songsDf.filter($"year" >= 2000 && $"year" < 2010).groupBy("year").agg(count("f1")).head().getInt(0)))
+    songsDf.filter($"year" >= 2000 && $"year" < 2010).groupBy("year").agg(count("f1")).show()
     sparkSession.sql("SELECT year, count(f1) FROM songs WHERE 2000 <= year AND year < 2010 GROUP BY year").show()
   }
 }
