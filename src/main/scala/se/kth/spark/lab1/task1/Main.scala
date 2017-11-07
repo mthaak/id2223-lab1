@@ -1,11 +1,7 @@
 package se.kth.spark.lab1.task1
 
-import se.kth.spark.lab1._
-import org.apache.spark.ml.feature.RegexTokenizer
-import org.apache.spark.ml.Pipeline
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
 
 case class Song(year: Double, f1: Double, f2: Double, f3: Double)
 
@@ -15,8 +11,8 @@ object Main {
     val sc = new SparkContext(conf)
     val sqlContext = new SQLContext(sc)
 
-    import sqlContext.implicits._
     import sqlContext._
+    import sqlContext.implicits._
 
     val filePath = "src/main/resources/millionsong.txt"
     //    val rawDF = ???
