@@ -1,12 +1,13 @@
 package se.kth.spark.lab1.task2
 
+import org.apache.commons.codec.StringEncoder
 import se.kth.spark.lab1._
-
 import org.apache.spark.ml.feature.RegexTokenizer
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.sql.{Row, SQLContext}
 
 object Main {
   def main(args: Array[String]) {
@@ -18,23 +19,38 @@ object Main {
     import sqlContext._
 
     val filePath = "src/main/resources/millionsong.txt"
-    val rawDF = ???
+    val rawDF = sc.textFile(filePath).toDF("line")
 
     //Step1: tokenize each row
     val regexTokenizer = new RegexTokenizer()
-      .setInputCol(???)
-      .setOutputCol(???)
-      .setPattern(???)
+      .setInputCol("line")
+      .setOutputCol("tokens")
+      .setPattern(",")
 
     //Step2: transform with tokenizer and show 5 rows
-    ???
+    val songsTokenized = regexTokenizer.transform(rawDF)
+    songsTokenized.take(5).foreach(println)
 
     //Step3: transform array of tokens to a vector of tokens (use our ArrayToVector)
-    val arr2Vect = new Array2Vector()
-    ???
+    val arr2Vect = new Array2Vector().setInputCol("tokens").setOutputCol("vector")
+    val songsTokenizedVector = arr2Vect.transform(songsTokenized)
+    songsTokenizedVector.take(5).foreach(println)
 
     //Step4: extract the label(year) into a new column
-    val lSlicer = ???
+//    import org.apache.spark.sql.functions._
+    val a = songsTokenizedVector.select("vector")
+//    val lSlicer = songsTokenizedVector.transform(_.select("vector").map(vector => vector.head))
+//    songsTokenizedVector.join
+//    lSlicer.take(5).foreach(println)
+//    val lSlicer = songsTokenizedVector.withColumn("_tmp", a($"line", "\\.")).select(
+//      $"_tmp".getItem(0).as("year")
+//    ).drop("_tmp")
+    import org.apache.spark.sql.functions.{udf => otherUdf, col}
+
+    val coder: (DenseVector => Int) = (vec) => vec.values(0).toInt
+    val sqlfunc = otherUdf(coder)
+    val lSlicer = songsTokenizedVector.withColumn("year", sqlfunc(col("vector")))
+    lSlicer.take(5).foreach(println)
 
     //Step5: convert type of the label from vector to double (use our Vector2Double)
     val v2d = new Vector2DoubleUDF(???)
