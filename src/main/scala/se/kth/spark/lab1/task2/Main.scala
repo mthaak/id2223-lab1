@@ -37,19 +37,11 @@ object Main {
     songsTokenizedVector.take(5).foreach(println)
 
     //Step4: extract the label(year) into a new column
-//    import org.apache.spark.sql.functions._
-    val a = songsTokenizedVector.select("vector")
-//    val lSlicer = songsTokenizedVector.transform(_.select("vector").map(vector => vector.head))
-//    songsTokenizedVector.join
-//    lSlicer.take(5).foreach(println)
-//    val lSlicer = songsTokenizedVector.withColumn("_tmp", a($"line", "\\.")).select(
-//      $"_tmp".getItem(0).as("year")
-//    ).drop("_tmp")
     import org.apache.spark.sql.functions.{udf => otherUdf, col}
-
+    // https://stackoverflow.com/questions/30219592/create-new-column-with-function-in-spark-dataframe
     val coder: (DenseVector => Int) = (vec) => vec.values(0).toInt
-    val sqlfunc = otherUdf(coder)
-    val lSlicer = songsTokenizedVector.withColumn("year", sqlfunc(col("vector")))
+    val sqlFunc = otherUdf(coder)
+    val lSlicer = songsTokenizedVector.withColumn("year", sqlFunc(col("vector")))
     lSlicer.take(5).foreach(println)
 
     //Step5: convert type of the label from vector to double (use our Vector2Double)
