@@ -1,48 +1,43 @@
 package se.kth.spark.lab1.task6
 
 import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.ml.PredictorParams
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.util._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, Row}
 import org.apache.spark.sql.functions._
 
-import org.apache.spark.hack._
-import org.apache.spark.sql.Row
-import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.ml.linalg.Matrices
-import org.apache.spark.mllib.evaluation.RegressionMetrics
+import scala.math.{pow, sqrt}
 
 case class Instance(label: Double, features: Vector)
 
 object Helper {
   def rmse(labelsAndPreds: RDD[(Double, Double)]): Double = {
-    ???
+    sqrt(labelsAndPreds.map({ case (d1, d2) => pow(d1 - d2, 2) }).sum / labelsAndPreds.count())
   }
 
   def predictOne(weights: Vector, features: Vector): Double = {
-    ???
+    VectorHelper.dot(weights, features)
   }
 
   def predict(weights: Vector, data: RDD[Instance]): RDD[(Double, Double)] = {
-    ???
+    data.map({ case x => (x.label, predictOne(weights, x.features)) })
   }
 }
 
 class MyLinearRegressionImpl(override val uid: String)
-    extends MyLinearRegression[Vector, MyLinearRegressionImpl, MyLinearModelImpl] {
+  extends MyLinearRegression[Vector, MyLinearRegressionImpl, MyLinearModelImpl] {
 
   def this() = this(Identifiable.randomUID("mylReg"))
 
   override def copy(extra: ParamMap): MyLinearRegressionImpl = defaultCopy(extra)
 
   def gradientSummand(weights: Vector, lp: Instance): Vector = {
-    ???
+    VectorHelper.dot(lp.features, (VectorHelper.dot(weights, lp.features) - lp.label))
   }
 
   def gradient(d: RDD[Instance], weights: Vector): Vector = {
-    ???
+    d.map({case x => gradientSummand(weights, x)}).reduce(VectorHelper.sum)
   }
 
   def linregGradientDescent(trainData: RDD[Instance], numIters: Int): (Vector, Array[Double]) = {
@@ -77,9 +72,9 @@ class MyLinearRegressionImpl(override val uid: String)
 
     val instances: RDD[Instance] = dataset.select(
       col($(labelCol)), col($(featuresCol))).rdd.map {
-        case Row(label: Double, features: Vector) =>
-          Instance(label, features)
-      }
+      case Row(label: Double, features: Vector) =>
+        Instance(label, features)
+    }
 
     val (weights, trainingError) = linregGradientDescent(instances, numIters)
     new MyLinearModelImpl(uid, weights, trainingError)
@@ -87,7 +82,7 @@ class MyLinearRegressionImpl(override val uid: String)
 }
 
 class MyLinearModelImpl(override val uid: String, val weights: Vector, val trainingError: Array[Double])
-    extends MyLinearModel[Vector, MyLinearModelImpl] {
+  extends MyLinearModel[Vector, MyLinearModelImpl] {
 
   override def copy(extra: ParamMap): MyLinearModelImpl = defaultCopy(extra)
 

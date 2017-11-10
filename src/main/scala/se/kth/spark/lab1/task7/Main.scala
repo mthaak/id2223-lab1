@@ -1,17 +1,18 @@
-package se.kth.spark.lab1.task6
+package se.kth.spark.lab1.task4
 
 import org.apache.spark._
-import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
-import org.apache.spark.ml.PipelineModel
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.{Pipeline, PipelineModel}
-import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
-import org.apache.spark.ml.feature.{RegexTokenizer, VectorSlicer}
+import org.apache.spark.sql.{DataFrame, SQLContext}
 import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
+import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.ml.feature.{RegexTokenizer, VectorSlicer}
+import org.apache.spark.ml.param.IntParam
 import org.apache.spark.sql.functions.min
 import se.kth.spark.lab1.{Array2Vector, DoubleUDF, Vector2DoubleUDF}
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
+import scala.util.Try
 
 object Main {
   def main(args: Array[String]) {
@@ -23,26 +24,43 @@ object Main {
     import sqlContext._
 
     val filePath = "src/main/resources/millionsong.txt"
-
     val obsDF: DataFrame = sc.textFile(filePath).toDF("line")
 
     val pipeline = this.getPipeline(obsDF)
     val pipelineModel: PipelineModel = pipeline.fit(obsDF)
     val cleanDF = pipelineModel.transform(obsDF)
 
-    val myLR= new MyLinearRegressionImpl()
+    val myLR = new LinearRegression()
       .setFeaturesCol("features")
       .setLabelCol("label")
       .setPredictionCol("prediction")
+      .setMaxIter(50)
+      .setRegParam(0.9)
+      .setElasticNetParam(0.1)
     val lrStage = myLR.fit(cleanDF)
     val predictions = lrStage.transform(cleanDF)
     predictions.select("label", "prediction").take(5).foreach(println)
 
-    val summary = lrStage.trainingError.last
-    println("RMSE: %f".format(summary))
-    //print rmse of our model
-    //do prediction - print first k
+    val summary = lrStage.summary
+    println("RMSE: %f".format(summary.rootMeanSquaredError))
+    println("r^2: %f".format(summary.r2))
+
+
+    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, 10 to (100, 50))
+      .addGrid(myLR.regParam, 0.1 to (0.9, 0.5))
+      .addGrid(myLR.elasticNetParam, 0.1 to (0.9, 0.5))
+      .build()
+    val evaluator = new RegressionEvaluator()
+
+    val cv = new CrossValidator().setEstimator(myLR)
+      .setEvaluator(evaluator)
+      .setEstimatorParamMaps(paramGrid)
+    val cvModel: CrossValidatorModel = cv.fit(cleanDF)
+    val lrModel = cvModel.bestModel.asInstanceOf[LinearRegressionModel]
+
+  println(lrModel.extractParamMap())
   }
+
   private def getPipeline(df: DataFrame): Pipeline = {
     //Step1: tokenize each row
     val regexTokenizer = new RegexTokenizer()
@@ -67,5 +85,8 @@ object Main {
     val pipeline = new Pipeline().setStages(Array(regexTokenizer, arr2Vect, lSlicer, v2d, lShifter, fSlicer))
 
     pipeline
+
+    //print rmse of our model
+    //do prediction - print first k
   }
 }

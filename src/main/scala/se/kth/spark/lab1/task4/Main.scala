@@ -30,22 +30,22 @@ object Main {
     val myLR = new LinearRegression()
       .setFeaturesCol("features")
       .setLabelCol("label")
-      .setPredictionCol("predict")
+      .setPredictionCol("prediction")
       .setMaxIter(50)
       .setRegParam(0.9)
       .setElasticNetParam(0.1)
     val lrStage = myLR.fit(cleanDF)
     val predictions = lrStage.transform(cleanDF)
-    predictions.select("label", "predict").take(5).foreach(println)
+    predictions.select("label", "prediction").take(5).foreach(println)
 
     val summary = lrStage.summary
     println("RMSE: %f".format(summary.rootMeanSquaredError))
     println("r^2: %f".format(summary.r2))
 
 
-    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, (10 to 100))
-      .addGrid(myLR.regParam, 0.1 to (1.0, 0.1))
-      .addGrid(myLR.elasticNetParam, 0.1 to (1.0, 0.1))
+    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, 10 to (100, 50))
+      .addGrid(myLR.regParam, 0.1 to (0.9, 0.5))
+      .addGrid(myLR.elasticNetParam, 0.1 to (0.9, 0.5))
       .build()
     val evaluator = new RegressionEvaluator()
 
@@ -53,9 +53,9 @@ object Main {
       .setEvaluator(evaluator)
       .setEstimatorParamMaps(paramGrid)
     val cvModel: CrossValidatorModel = cv.fit(cleanDF)
-    val lrModel = cvModel.bestModel.asInstanceOf[PipelineModel].stages(0).asInstanceOf[LinearRegressionModel]
+    val lrModel = cvModel.bestModel.asInstanceOf[LinearRegressionModel]
 
-    println(lrModel.summary.rootMeanSquaredError)
+  println(lrModel.extractParamMap())
   }
 
   private def getPipeline(df: DataFrame): Pipeline = {
