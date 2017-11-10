@@ -42,9 +42,8 @@ object Main {
 
 
     val paramGrid = new ParamGridBuilder()
-      .addGrid(myLR.maxIter, 10 to(100, 50))
-      .addGrid(myLR.regParam, 0.1 to(1.0, 0.2))
-      .addGrid(myLR.elasticNetParam, 0.1 to(1.0, 0.2))
+      .addGrid(myLR.maxIter, 10 to(150, 20))
+      .addGrid(myLR.regParam, 0.0 to(1.0, 0.1))
       .build()
     val evaluator = new RegressionEvaluator()
 
