@@ -35,8 +35,8 @@ object Main {
     predictions.select("label", "predict").take(5).foreach(println)
 
     val summary = lrStage.summary
-    println("RMSE: %d".format(summary.rootMeanSquaredError))
-    println("r^2: %d".format(summary.r2))
+    println("RMSE: %f".format(summary.rootMeanSquaredError))
+    println("r^2: %f".format(summary.r2))
   }
 
   private def getPipeline(df: DataFrame): Pipeline = {
