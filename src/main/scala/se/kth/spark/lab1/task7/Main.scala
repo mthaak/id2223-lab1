@@ -1,18 +1,12 @@
-package se.kth.spark.lab1.task4
+package se.kth.spark.lab1.task7
 
 import org.apache.spark._
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.sql.{DataFrame, SQLContext}
-import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
-import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
+import org.apache.spark.ml.feature.{PolynomialExpansion, RegexTokenizer, VectorSlicer}
+import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.ml.{Pipeline, PipelineModel}
-import org.apache.spark.ml.feature.{RegexTokenizer, VectorSlicer}
-import org.apache.spark.ml.param.IntParam
 import org.apache.spark.sql.functions.min
+import org.apache.spark.sql.{DataFrame, SQLContext}
 import se.kth.spark.lab1.{Array2Vector, DoubleUDF, Vector2DoubleUDF}
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
-import scala.util.Try
 
 object Main {
   def main(args: Array[String]) {
@@ -21,9 +15,9 @@ object Main {
     val sqlContext = new SQLContext(sc)
 
     import sqlContext.implicits._
-    import sqlContext._
 
-    val filePath = "src/main/resources/millionsong.txt"
+    // The columns are year, artist_hotness, duration, end_fade_in, key, loudness, start_fade_out, tempo
+    val filePath = "src/main/resources/all_millionsong.csv"
     val obsDF: DataFrame = sc.textFile(filePath).toDF("line")
 
     val pipeline = this.getPipeline(obsDF)
@@ -34,8 +28,8 @@ object Main {
       .setFeaturesCol("features")
       .setLabelCol("label")
       .setPredictionCol("prediction")
-      .setMaxIter(50)
-      .setRegParam(0.9)
+      .setMaxIter(70)
+      .setRegParam(0.0)
       .setElasticNetParam(0.1)
     val lrStage = myLR.fit(cleanDF)
     val predictions = lrStage.transform(cleanDF)
@@ -44,21 +38,6 @@ object Main {
     val summary = lrStage.summary
     println("RMSE: %f".format(summary.rootMeanSquaredError))
     println("r^2: %f".format(summary.r2))
-
-
-    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, 10 to (100, 50))
-      .addGrid(myLR.regParam, 0.1 to (0.9, 0.5))
-      .addGrid(myLR.elasticNetParam, 0.1 to (0.9, 0.5))
-      .build()
-    val evaluator = new RegressionEvaluator()
-
-    val cv = new CrossValidator().setEstimator(myLR)
-      .setEvaluator(evaluator)
-      .setEstimatorParamMaps(paramGrid)
-    val cvModel: CrossValidatorModel = cv.fit(cleanDF)
-    val lrModel = cvModel.bestModel.asInstanceOf[LinearRegressionModel]
-
-  println(lrModel.extractParamMap())
   }
 
   private def getPipeline(df: DataFrame): Pipeline = {
@@ -79,14 +58,13 @@ object Main {
         arr2Vect.transform(
           regexTokenizer.transform(df)))).agg(min("yeard")).head.getDouble(0)
     val lShifter = new DoubleUDF(_ - minYear).setInputCol("yeard").setOutputCol("label")
-    //Step7: extract just the 3 first features in a new vector column
-    val fSlicer = new VectorSlicer().setInputCol("vector").setOutputCol("features").setIndices((1 to 3).toArray)
+    //Step7: extract all features in a new vector column
+    val fSlicer = new VectorSlicer().setInputCol("vector").setOutputCol("features").setIndices((1 to 7).toArray)
+    // Step7.5: polynomial expansion
+    val polynomialExpansionT = new PolynomialExpansion().setInputCol("features").setOutputCol("features_poly").setDegree(2)
     //Step8: put everything together in a pipeline
-    val pipeline = new Pipeline().setStages(Array(regexTokenizer, arr2Vect, lSlicer, v2d, lShifter, fSlicer))
+    val pipeline = new Pipeline().setStages(Array(regexTokenizer, arr2Vect, lSlicer, v2d, lShifter, fSlicer, polynomialExpansionT))
 
     pipeline
-
-    //print rmse of our model
-    //do prediction - print first k
   }
 }

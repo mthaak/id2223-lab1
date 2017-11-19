@@ -2,13 +2,12 @@ package se.kth.spark.lab1.task4
 
 import org.apache.spark._
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.sql.{DataFrame, SQLContext}
-import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
-import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
-import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.feature.{RegexTokenizer, VectorSlicer}
-import org.apache.spark.ml.param.IntParam
+import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
+import org.apache.spark.ml.tuning.{CrossValidator, CrossValidatorModel, ParamGridBuilder}
+import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.sql.functions.min
+import org.apache.spark.sql.{DataFrame, SQLContext}
 import se.kth.spark.lab1.{Array2Vector, DoubleUDF, Vector2DoubleUDF}
 
 object Main {
@@ -18,7 +17,6 @@ object Main {
     val sqlContext = new SQLContext(sc)
 
     import sqlContext.implicits._
-    import sqlContext._
 
     val filePath = "src/main/resources/millionsong.txt"
     val obsDF: DataFrame = sc.textFile(filePath).toDF("line")
@@ -43,9 +41,9 @@ object Main {
     println("r^2: %f".format(summary.r2))
 
 
-    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, 10 to (100, 50))
-      .addGrid(myLR.regParam, 0.1 to (0.9, 0.5))
-      .addGrid(myLR.elasticNetParam, 0.1 to (0.9, 0.5))
+    val paramGrid = new ParamGridBuilder().addGrid(myLR.maxIter, 10 to(100, 50))
+      .addGrid(myLR.regParam, 0.1 to(0.9, 0.5))
+      .addGrid(myLR.elasticNetParam, 0.1 to(0.9, 0.5))
       .build()
     val evaluator = new RegressionEvaluator()
 
@@ -55,7 +53,9 @@ object Main {
     val cvModel: CrossValidatorModel = cv.fit(cleanDF)
     val lrModel = cvModel.bestModel.asInstanceOf[LinearRegressionModel]
 
-  println(lrModel.extractParamMap())
+    println("== Cross validation ==")
+    println("RMSE: %f".format(lrModel.summary.rootMeanSquaredError))
+    println(lrModel.extractParamMap())
   }
 
   private def getPipeline(df: DataFrame): Pipeline = {
@@ -82,8 +82,5 @@ object Main {
     val pipeline = new Pipeline().setStages(Array(regexTokenizer, arr2Vect, lSlicer, v2d, lShifter, fSlicer))
 
     pipeline
-
-    //print rmse of our model
-    //do prediction - print first k
   }
 }

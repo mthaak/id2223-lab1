@@ -26,13 +26,13 @@ object Main {
     val myLR = new LinearRegression()
       .setFeaturesCol("features")
       .setLabelCol("label")
-      .setPredictionCol("predict")
+      .setPredictionCol("prediction")
       .setMaxIter(50)
       .setRegParam(0.9)
       .setElasticNetParam(0.1)
     val lrStage = myLR.fit(cleanDF)
     val predictions = lrStage.transform(cleanDF)
-    predictions.select("label", "predict").take(5).foreach(println)
+    predictions.select("label", "prediction").take(5).foreach(println)
 
     val summary = lrStage.summary
     println("RMSE: %f".format(summary.rootMeanSquaredError))
